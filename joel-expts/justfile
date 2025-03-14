@@ -1,0 +1,88 @@
+#===============================================================================
+# Default target and directory settings
+#===============================================================================
+default:
+    @just fast_run
+
+# Directory settings
+venv_dir := ".venv"
+spack_path := "/home/joel/spack"
+dataspaces_src_dir := "/home/joel/Programming/dspaces"
+
+#===============================================================================
+# Environment setup commands
+#===============================================================================
+# Define spack commands as variables
+spack_setup := ". " + spack_path + "/share/spack/setup-env.sh"
+spack_load := "eval $(spack load --sh pkgconfig mochi-margo mpi lz4)"
+
+# Captures spack's environment into a file for sharing between recipes
+setup_spack_env:
+    #!/usr/bin/env bash
+    echo "# Spack environment setup" > {{justfile_directory()}}/spack.env
+    PATH_BEFORE="$PATH"
+    LD_LIBRARY_PATH_BEFORE="$LD_LIBRARY_PATH"
+    {{ spack_setup }}
+    {{ spack_load }}
+    # Only capture the differences in PATH and LD_LIBRARY_PATH
+    echo "export PATH=\"$PATH\"" >> {{justfile_directory()}}/spack.env
+    echo "export LD_LIBRARY_PATH=\"$LD_LIBRARY_PATH\"" >> {{justfile_directory()}}/spack.env
+    # Add any other specific environment variables needed
+    echo "export PKG_CONFIG_PATH=\"$PKG_CONFIG_PATH\"" >> {{justfile_directory()}}/spack.env
+    echo "export LIBRARY_PATH=\"$LIBRARY_PATH\"" >> {{justfile_directory()}}/spack.env
+    echo "export CPATH=\"$CPATH\"" >> {{justfile_directory()}}/spack.env
+
+#===============================================================================
+# DataSpaces build and installation targets
+#===============================================================================
+# Install dependencies for DataSpaces
+install_dataspaces_dependencies:
+    sudo apt install -y python3-numpy swig # For Python bindings
+    pip install dill mpi4py
+    {{ spack_setup }}
+    spack install pkgconfig mochi-margo mpi lz4
+
+# Configure DataSpaces build
+create_dataspaces_build: setup_spack_env
+    #!/usr/bin/env bash
+    cd {{dataspaces_src_dir}}
+    mkdir -p build
+    cd build
+    set -a && source {{justfile_directory()}}/spack.env && set +a && \
+    cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+          -DDSPACES_PYTHON_BINDINGS=ON \
+          -DENABLE_TESTS=ON \
+          -DCMAKE_C_COMPILER=mpicc \
+          ..
+
+# Build DataSpaces
+build_dataspaces: create_dataspaces_build
+    #!/usr/bin/env bash
+    cd {{dataspaces_src_dir}}/build
+    make -j $(nproc)
+
+# Install DataSpaces
+install_dataspaces: build_dataspaces
+    #!/usr/bin/env bash
+    cd {{dataspaces_src_dir}}/build
+    sudo make install
+
+# Clean DataSpaces build directory
+clean_dataspaces:
+    #!/usr/bin/env bash
+    cd {{dataspaces_src_dir}}
+    rm -rf build
+
+#===============================================================================
+# Run targets
+#===============================================================================
+# Fast run - doesn't rebuild DataSpaces
+fast_run: setup_spack_env
+    #!/usr/bin/env bash
+    . {{venv_dir}}/bin/activate && \
+    set -a && source spack.env && set +a && \
+    export PYTHONPATH=${PYTHONPATH:-}:/usr/local/lib/python3/dist-packages && uv run main.py
+
+# Complete run - builds, installs DataSpaces, then runs
+run: install_dataspaces
+    @just fast_run
