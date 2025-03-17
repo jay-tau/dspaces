@@ -8,6 +8,7 @@ default:
 venv_dir := ".venv"
 spack_path := "/home/joel/spack"
 dataspaces_src_dir := "/home/joel/Programming/dspaces"
+compose_dir := "/home/joel/Programming/dspaces-api"
 
 #===============================================================================
 # Environment setup commands
@@ -81,8 +82,25 @@ fast_run: setup_spack_env
     #!/usr/bin/env bash
     . {{venv_dir}}/bin/activate && \
     set -a && source spack.env && set +a && \
-    export PYTHONPATH=${PYTHONPATH:-}:/usr/local/lib/python3/dist-packages && uv run main.py
+    export PYTHONPATH=${PYTHONPATH:-}:/usr/local/lib/python3/dist-packages && \
+    uv run src/main.py
 
 # Complete run - builds, installs DataSpaces, then runs
 run: install_dataspaces
     @just fast_run
+
+# New recipe to run MPI test
+test_mpi: setup_spack_env
+    #!/usr/bin/env bash
+    . {{venv_dir}}/bin/activate && \
+    set -a && source spack.env && set +a && \
+    export PYTHONPATH=${PYTHONPATH:-}:/usr/local/lib/python3/dist-packages && \
+    mpiexec -n 4 python src/test_mpi.py
+
+# New recipe to run server
+run_server:
+    #!/usr/bin/env bash
+    cd {{compose_dir}}
+    docker compose down
+    docker compose up -d
+    docker logs dspaces
