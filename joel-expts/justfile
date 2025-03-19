@@ -38,10 +38,11 @@ setup_spack_env:
 #===============================================================================
 # Install dependencies for DataSpaces
 install_dataspaces_dependencies:
+    #!/usr/bin/env bash
     sudo apt install -y python3-numpy swig # For Python bindings
     pip install dill mpi4py
     {{ spack_setup }}
-    spack install pkgconfig mochi-margo mpi lz4
+    spack install mochi-margo@0.14.1 ^mercury~boostsys@2.3.1 ^libfabric@1.19.0 pkgconfig mpi lz4 # https://github.com/rdi2dspaces/dspaces-containers/blob/ad75e02b07440ae5391a9b13cc214289a058c2a9/dspaces-deps-jammy/Dockerfile#L11
 
 # Configure DataSpaces build
 create_dataspaces_build: setup_spack_env
@@ -94,8 +95,12 @@ test_mpi: setup_spack_env
     #!/usr/bin/env bash
     . {{venv_dir}}/bin/activate && \
     set -a && source spack.env && set +a && \
+    # export DSPACES_DEBUG=1 && \
+    # export HG_LOG_LEVEL=debug && \
     export PYTHONPATH=${PYTHONPATH:-}:/usr/local/lib/python3/dist-packages && \
-    mpiexec -n 4 python src/test_mpi.py
+    mpiexec -n 8 python src/test_mpi.py 3
+    # mpiexec -n 4 strace -e trace=mmap -o syscall.out.csv python src/test_mpi.py 2
+    # mpiexec -n 4 strace python src/test_mpi.py 2
 
 # New recipe to run server
 run_server:
