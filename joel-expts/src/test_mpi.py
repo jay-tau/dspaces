@@ -32,12 +32,12 @@ client = ds.DSClient()  # Initialize DataSpaces library - defaults to using COMM
 
 data = np.arange(ARRAY_SIZE)
 
+current_unix_time = None
+data_var_name = None
+
 if rank == 0:
     current_unix_time = int(time.time())
     data_var_name = f"data_{str(datetime.now())}"
-else:
-    current_unix_time = None
-    data_var_name = None
 
 current_unix_time = comm.bcast(current_unix_time, root=0)
 data_var_name = comm.bcast(data_var_name, root=0)
