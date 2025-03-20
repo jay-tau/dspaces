@@ -102,6 +102,15 @@ test_mpi: setup_spack_env
     # mpiexec -n 4 strace -e trace=mmap -o syscall.out.csv python src/test_mpi.py 2
     # mpiexec -n 4 strace python src/test_mpi.py 2
 
+run_writer: setup_spack_env
+    #!/usr/bin/env bash
+    . {{venv_dir}}/bin/activate && \
+    set -a && source spack.env && set +a && \
+    # export DSPACES_DEBUG=1 && \
+    # export HG_LOG_LEVEL=debug && \
+    export PYTHONPATH=${PYTHONPATH:-}:/usr/local/lib/python3/dist-packages && \
+    mpiexec -n 6 python src/writer.py
+
 # New recipe to run server
 run_server:
     #!/usr/bin/env bash
